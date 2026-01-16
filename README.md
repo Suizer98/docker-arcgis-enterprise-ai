@@ -1,6 +1,6 @@
 # Docker ArcGIS Enterprise with AI Agent
 
-> **AI-Powered ArcGIS Enterprise** - Natural language interaction with ArcGIS Enterprise using LangChain and MCP.
+> AI-Powered ArcGIS Enterprise - Natural language interaction with ArcGIS Enterprise using LangChain and MCP.
 
 ![Tech Stack](https://skillicons.dev/icons?i=docker,python,fastapi,svelte,typescript,postgresql,ubuntu)
 
@@ -21,10 +21,10 @@ graph TB
 
 ## Features
 
-- **Natural Language Queries**: Ask about ArcGIS services like a chatbot
-- **Service Discovery**: Automatically list and find hosted services
-- **Service Details**: Get published service information like layers and extents
-- **Query Layer**: Query layer with parameters such as record counts
+- Natural Language Queries: Ask about ArcGIS services like a chatbot
+- Service Discovery: Automatically list and find hosted services
+- Service Details: Get published service information like layers and extents
+- Query Layer: Query layer with parameters such as record counts
 
 ## Quick Start
 
@@ -68,23 +68,23 @@ To enable tool discovery in Cursor, copy the contents of `mcp/mcp.json.example` 
 
 ## Endpoints
 
-- **Frontend**: http://localhost:3000
-- **AI Agent**: http://localhost:8000/chat
-- **MCP Server**: http://localhost:8001
-- **ArcGIS Portal**: https://portal.local:7443
-- **ArcGIS Server**: https://server.local:6443
+- Frontend: http://localhost:3000
+- AI Agent: http://localhost:8000/chat
+- MCP Server: http://localhost:8001
+- ArcGIS Portal: https://portal.local:7443
+- ArcGIS Server: https://server.local:6443
 
 ## Tech Stack
 
-- **LLM Agent**: LangChain + Groq Llama 3.1 8B
-- **MCP**: FastAPI with Model Context Protocol
-- **ArcGIS**: Enterprise 11.4 (Server, Portal, DataStore)
-- **Database**: PostgreSQL with PostGIS extension
+- LLM Agent: LangChain + Groq Llama 3.1 8B
+- MCP: FastAPI with Model Context Protocol
+- ArcGIS: Enterprise 11.4 (Server, Portal, DataStore)
+- Database: PostgreSQL with PostGIS extension
 
 ## References
 
-- **Docker Issues**: Refer to [docs/README.md](docs/README.md) for detailed Docker setup, configuration and troubleshooting
-- **General Troubleshooting**: See [docs/README-original.md](docs/README-original.md) for Wildsong's comprehensive explainations
+- Docker Issues: Refer to [docs/README.md](docs/README.md) for detailed Docker setup, configuration and troubleshooting
+- General Troubleshooting: See [docs/README-original.md](docs/README-original.md) for Wildsong's comprehensive explainations
 ---
 
-**Ready to explore ArcGIS Enterprise with AI?** 🚀
+Ready to explore ArcGIS Enterprise with AI? 🚀
