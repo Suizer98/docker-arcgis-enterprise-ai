@@ -26,6 +26,9 @@ dist/
 dist-ssr/
 *.local
 
+nginx/ssl/server.key
+nginx/ssl/server.crt
+
 # Logs
 logs
 *.log

@@ -23,14 +23,16 @@ docker buildx build --platform linux/amd64 -t ubuntu-server ubuntu-server
 ## Port forwarding between each containers
 
 ### Current Approach
-On Windows WSL2, we use direct hostname resolution through `/etc/hosts` entries:
+On Windows WSL2, we use direct hostname resolution through `/etc/hosts` entries. Add the same lines to Windows hosts (`C:\Windows\System32\drivers\etc\hosts`) if you need the browser or other apps on the host to resolve these names (for example `nginx.local` for static Experience Builder widgets):
+
 ```
 127.0.0.1 portal portal.local
 127.0.0.1 server server.local
 127.0.0.1 datastore datastore.local
+127.0.0.1 nginx nginx.local
 ```
 
-You need to have administrative rights to modify `/etc/hosts` on both WSL2 and host machine.
+You need administrative rights to edit `/etc/hosts` in WSL and the hosts file on Windows.
 You may also explore to use Nginx reverse proxy.
 
 ## Setup enterprise geodatabases connection
@@ -123,6 +125,34 @@ In [`create_enterprise_gdb.py`](postgres/create_enterprise_gdb.py), replace valu
 ```python
 spatial_type="POSTGIS"  # Instead of "ST_GEOMETRY"
 ```
+
+### Portal `allowedProxyHosts` (custom Experience Builder widgets)
+
+If you host widget files on another host (for example `nginx.local` via this repo’s `nginx` service), Portal may need that hostname in `allowedProxyHosts` so server-side requests to your widget URL are allowed. Adjust hostnames, ports, and credentials to match your environment; use a Portal administrator account.
+
+```bash
+TOKEN=$(curl -sk --resolve portal.local:7443:127.0.0.1 \
+  "https://portal.local:7443/arcgis/sharing/rest/generateToken" \
+  -d "username=YOUR_PORTAL_ADMIN" \
+  -d "password=YOUR_PASSWORD" \
+  -d "client=referer" \
+  -d "referer=https://portal.local:7443/" \
+  -d "f=json" | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
+
+curl -sk --resolve portal.local:7443:127.0.0.1 \
+  -H "Referer: https://portal.local:7443/" \
+  "https://portal.local:7443/arcgis/portaladmin/security/config?f=json&token=${TOKEN}" \
+  | jq '. + {"allowedProxyHosts": "nginx.local"}' \
+  > /tmp/portal-security-config-with-proxy.json
+
+curl -sk --resolve portal.local:7443:127.0.0.1 \
+  -H "Referer: https://portal.local:7443/" \
+  -X POST \
+  "https://portal.local:7443/arcgis/portaladmin/security/config/update?f=json&token=${TOKEN}" \
+  --data-urlencode "securityConfig@/tmp/portal-security-config-with-proxy.json"
+```
+
+Use a comma-separated list if you need several hostnames. To clear `allowedProxyHosts`, POST an updated config with that key removed (`jq 'del(.allowedProxyHosts)'` on the current JSON).
 
 ## Offline authorisation using `.ecp` file
 
