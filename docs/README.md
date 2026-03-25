@@ -1,6 +1,6 @@
 # docker-arcgis-enterprise
 
-> **Fork Notice**: This is a fork of the original [docker-arcgis-enterprise](https://github.com/Wildsong/docker-arcgis-enterprise) repository by Wildsong.
+> Fork Notice: This is a fork of the original [docker-arcgis-enterprise](https://github.com/Wildsong/docker-arcgis-enterprise) repository by Wildsong.
 
 Tech stacks:
 
@@ -23,7 +23,7 @@ docker buildx build --platform linux/amd64 -t ubuntu-server ubuntu-server
 ## Port forwarding between each containers
 
 ### Current Approach
-On Windows WSL2, we use direct hostname resolution through `/etc/hosts` entries. Add the same lines to Windows hosts (`C:\Windows\System32\drivers\etc\hosts`) if you need the browser or other apps on the host to resolve these names (for example `nginx.local` for static Experience Builder widgets):
+`/etc/hosts` in WSL; mirror in Windows (`C:\Windows\System32\drivers\etc\hosts`) if the browser/host apps must resolve names (e.g. `nginx.local` for widgets):
 
 ```
 127.0.0.1 portal portal.local
@@ -32,8 +32,7 @@ On Windows WSL2, we use direct hostname resolution through `/etc/hosts` entries.
 127.0.0.1 nginx nginx.local
 ```
 
-You need administrative rights to edit `/etc/hosts` in WSL and the hosts file on Windows.
-You may also explore to use Nginx reverse proxy.
+Admin rights required. Optional: Nginx reverse proxy.
 
 ## Setup enterprise geodatabases connection
 
@@ -85,9 +84,9 @@ docker cp docker-arcgis-enterprise-server-1:/home/arcgis/server/framework/runtim
 
 ### DataStore Validation Issues
 
-**Problem**: "Bad login user[ ]" error when validating relational data store.
+Problem: "Bad login user[ ]" error when validating relational data store.
 
-**Solution**: Add PostgreSQL access permissions for the actual database user:
+Solution: Add PostgreSQL access permissions for the actual database user:
 
 1. Find the username from the validation payload in Server Manager:
    - Go to `Site` > `Data Stores` in Server Manager
@@ -108,7 +107,7 @@ Note: DataStore spins up its own PostgreSQL instance, this is different from the
 
 ### Onboarding self hosted PostgreSQL as an enterprise GDB
 
-**Problem**: `st_geometry.so` downloaded from MyESRI is not compatible with ArcGIS Server version.
+Problem: `st_geometry.so` downloaded from MyESRI is not compatible with ArcGIS Server version.
 
 ```
 ERROR: Setup st_geometry library ArcGIS version does not match the expected version in use [Success] st_geometry library release expected: 1.30.4.10, found: 1.30.5.10
@@ -117,7 +116,7 @@ ERROR 003425: Setup st_geometry library ArcGIS version does not match the expect
 Failed to execute (CreateEnterpriseGeodatabase)
 ```
 
-**Solution**: Use POSTGIS instead of ST_GEOMETRY due to version mismatch:
+Solution: Use POSTGIS instead of ST_GEOMETRY due to version mismatch:
 - Expected: 1.30.4.10
 - Found: 1.30.5.10
 
@@ -126,9 +125,13 @@ In [`create_enterprise_gdb.py`](postgres/create_enterprise_gdb.py), replace valu
 spatial_type="POSTGIS"  # Instead of "ST_GEOMETRY"
 ```
 
-### Portal `allowedProxyHosts` (custom Experience Builder widgets)
+### Hosting custom widget on Nginx
 
-If you host widget files on another host (for example `nginx.local` via this repo’s `nginx` service), Portal may need that hostname in `allowedProxyHosts` so server-side requests to your widget URL are allowed. Adjust hostnames, ports, and credentials to match your environment; use a Portal administrator account.
+Follow Esri’s workflow: compile the widget in Experience Builder developer edition, copy the built folder to a web server, then register the manifest URL in Portal. Details (HTTPS, CORS, `application/json` for `.json`, and deploying `chunks` or `shared-code` when your widget uses them) are in [Add custom widgets](https://doc.arcgis.com/en/experience-builder/latest/configure-widgets/add-custom-widgets.htm).
+
+In this repository, the `nginx` Compose service serves static files from `nginx/html` (HTTP and HTTPS ports are mapped in `compose.yaml`). Point your manifest at something like `https://nginx.local:<tls-port>/<widget>/manifest.json` once TLS and hosts entries are in place.
+
+Portal may still block server-side access to that host until you allow it. Add the widget hostname (for example `nginx.local`) to Portal’s `allowedProxyHosts` security setting. The example below uses a referer-based token and `Referer: https://portal.local:7443/`; replace `portal.local`, ports, username, and password to match your site. You need a Portal administrator account.
 
 ```bash
 TOKEN=$(curl -sk --resolve portal.local:7443:127.0.0.1 \
@@ -152,7 +155,37 @@ curl -sk --resolve portal.local:7443:127.0.0.1 \
   --data-urlencode "securityConfig@/tmp/portal-security-config-with-proxy.json"
 ```
 
-Use a comma-separated list if you need several hostnames. To clear `allowedProxyHosts`, POST an updated config with that key removed (`jq 'del(.allowedProxyHosts)'` on the current JSON).
+Use a comma-separated list in `allowedProxyHosts` if you need more than one hostname. To undo the change, fetch the current security config JSON, run `jq 'del(.allowedProxyHosts)'`, and POST the result with the same `update` endpoint and a fresh token.
+
+### Custom Experience Builder widgets — `jimu-core/emotion.js` 404
+
+We built a widget with Experience Builder developer edition 1.19 (`npm run build:prod` in the developer `client` tree) and registered it on ArcGIS Enterprise 11.4 Portal. The widget showed in the builder but failed at runtime: the browser requested `.../cdn/<n>/jimu-core/emotion.js`, got a 404, then MIME-type and SystemJS errors because the error page was HTML. The same `cdn/<n>/jimu-core` path could serve `index.js` with HTTP 200, but there was no `emotion.js` file on the Portal host under `jimu-core`.
+
+The stock developer `client/tsconfig.json` turns on the automatic JSX runtime via `"jsxImportSource": "@emotion/react"` (often with `"jsx": "react-jsx"`), so the bundle imports `jimu-core/emotion` (resolved to `emotion.js`). The Experience Builder embedded in Enterprise 11.4 does not publish that file separately; Emotion is folded into other bundles. Switching to classic JSX avoids emitting that import.
+
+In the developer edition, edit `client/tsconfig.json` under `compilerOptions`. Remove the stock JSX lines and align with something like the following (merge with your existing options—do not duplicate keys):
+
+Before (remove):
+
+```json
+"jsx": "react-jsx",
+"jsxImportSource": "@emotion/react",
+```
+
+After:
+
+```json
+"lib": [
+  "dom",
+  "es6",
+  "scripthost",
+  "es2015",
+  "es2020.Promise"
+],
+"jsx": "react",
+```
+
+With `"jsx": "react"`, ensure each `.tsx` file has React in scope (for example `import { React } from 'jimu-core'` if that matches your project). Run `npm run build:prod` again, deploy the output under `dist-prod/widgets/<widget-name>/` to your static host, and hard-refresh the browser. Grep the built `.js` files: there should be no remaining `jimu-core/emotion` or `emotion.js` URL references.
 
 ## Offline authorisation using `.ecp` file
 
