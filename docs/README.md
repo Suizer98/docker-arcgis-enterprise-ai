@@ -34,6 +34,40 @@ docker buildx build --platform linux/amd64 -t ubuntu-server ubuntu-server
 
 Admin rights required. Optional: Nginx reverse proxy.
 
+### Web Adaptor: register with FQDN, then point the public URL at `localhost`
+
+The Web Adaptor wizard asks for Portal and Server machine names as FQDNs (for example `portal.local` and `server.local`), not `localhost`. Those names must resolve from the Web Adaptor container (Compose DNS) and, when you use the browser to Portal/Server directly, from Windows via the same `hosts` lines as above (`127.0.0.1 portal.local`, `127.0.0.1 server.local`, matching your `.env` `PORTAL` / `GISSERVER` casing if you use uppercase in Docker).
+
+After registration, Portal often records the Web Adaptor URL using the machine name Esri sees from the Web Adaptor host (often Docker’s default hostname, e.g. a short id like `787D93599E29`) instead of the URL you use in the browser. That breaks OAuth redirects and “invalid redirect_uri” until the stored URL matches how you browse.
+
+Important: Updating the Web adaptor URL in Portal (and `WebContextURL` in step 4) to `https://localhost/arcgis` is what fixes the mismatch when you sign in at `https://localhost/arcgis/home`. Without that, OAuth redirects and callback URLs can point at the wrong host (the container id or another name), which shows up as invalid redirect URI errors, failed login loops, or 404s on redirect/callback paths after you submit credentials.
+
+To compare with Machine name in Portal, see what hostname the Web Adaptor container reports:
+
+```bash
+docker exec web-adaptor hostname
+```
+
+Fix the Web Adaptor URL in Portal (direct HTTPS to Portal, bypassing the Web Adaptor for admin):
+
+1. Open Portal Administrator Directory (signed in as a Portal admin), for example:  
+   `https://portal.local:7443/arcgis/portaladmin/`  
+   (requires `portal.local` in Windows `hosts`, or use `--resolve` / real DNS.)
+
+2. Go to Home → System → Web Adaptors, open the Web Adaptor that lists your machine (for example Web Adaptor: `787D93599E29`), then edit.  
+   Direct link pattern (your GUID will differ):  
+   `https://portal.local:7443/arcgis/portaladmin/system/webadaptors/<web-adaptor-id>`  
+   Append `/edit` to open the edit form directly:  
+   `https://portal.local:7443/arcgis/portaladmin/system/webadaptors/<web-adaptor-id>/edit`
+
+3. Set Web adaptor URL to what clients actually use through the adaptor, for example:  
+   `https://localhost/arcgis`  
+   with HTTP port `80` and HTTPS port `443` (host ports mapped in `compose.yaml` to the Web Adaptor container).
+
+4. Save (Portal may restart). Optionally align System → Properties → WebContextURL with `https://localhost/arcgis` so Portal-generated links and OAuth match.
+
+Summary: Register using `portal.local` / `server.local` (and `hosts` on Windows for direct Portal admin). Then edit the Web Adaptor entry so URL is `https://localhost/arcgis`, not the auto-detected Docker hostname—so that logging in through `https://localhost/arcgis/home` uses consistent redirect URIs and OAuth stops failing with 404 or invalid redirect on the callback.
+
 ## Setup enterprise geodatabases connection
 
 ### Setup connection between pgadmin and postgresql

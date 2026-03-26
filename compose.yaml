@@ -135,6 +135,28 @@ services:
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
       PGADMIN_DISABLE_POSTFIX: 1
 
+  web-adaptor:
+    container_name: web-adaptor
+    depends_on:
+      - portal
+    build:
+      context: .
+      dockerfile: web-adaptor/Dockerfile
+    image: web-adaptor
+    env_file: ./.env
+    environment:
+      WA_NAME: ${WA_NAME:-localhost}
+      # Esri requires an FQDN (e.g. PORTAL.LOCAL), not a single label like "portal". Defaults to ${PORTAL}.
+      PORTAL_NAME: ${PORTAL_NAME:-${PORTAL}}
+      AGS_USER: ${AGS_USER}
+      AGS_PASSWORD: ${AGS_PASSWORD}
+      AGS_DOMAIN: ${AGS_DOMAIN:-}
+    ports:
+      - "${WA_HTTP_HOST:-127.0.0.1}:${WA_HTTP_PORT:-9080}:80"
+      # HTTPS: host 9443 and 443 both map to Tomcat 443 (use https://localhost/… for Portal WA UI).
+      - "${WA_HTTPS_HOST:-127.0.0.1}:${WA_HTTPS_PORT:-9443}:443"
+      - "${WA_HTTPS_HOST:-127.0.0.1}:443:443"
+
   # mcp:
   #   image: arcgis-mcp-server
   #   hostname: mcp
