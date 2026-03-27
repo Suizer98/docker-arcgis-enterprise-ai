@@ -71,14 +71,15 @@ To enable tool discovery in Cursor, copy the contents of `mcp/mcp.json.example` 
 - Frontend: http://localhost:3000
 - AI Agent: http://localhost:8000/chat
 - MCP Server: http://localhost:8001
-- ArcGIS Portal: https://portal.local:7443
-- ArcGIS Server: https://server.local:6443
+- ArcGIS Portal: https://portal.local:7443 (with Web Adaptor: https://localhost/arcgis/home)
+- ArcGIS Server: https://server.local:6443 (with Web Adaptor: https://localhost/arcgis/rest/services)
 
 ## Tech Stack
 
 - LLM Agent: LangChain + Groq Llama 3.1 8B
 - MCP: FastAPI with Model Context Protocol
-- ArcGIS: Enterprise 11.4 (Server, Portal, DataStore)
+- ArcGIS: Enterprise 11.4 (Server, Portal, DataStore, Web Adaptor)
+- nginx
 - Database: PostgreSQL with PostGIS extension
 
 ## References
