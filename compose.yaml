@@ -21,6 +21,8 @@ volumes:
     name: arcgis_postgres_data
   pgadmin_data:
     name: arcgis_pgadmin_data
+  keycloak_data:
+    name: arcgis_keycloak_data
 
 services:
   server:
@@ -68,12 +70,16 @@ services:
     volumes:
       - ./Installers/PortalForArcGIS:/app/Installer:ro
       - ./Licenses/ArcGISPortal.json:/app/portal_license.json:ro
+      - ./nginx/ssl/server.crt:/app/keycloak-ca.crt:ro
       - portal_home:/home/arcgis:rw
       - portal_data:/srv/content:rw
      #- portal_data:/home/arcgis/portal/usr/arcgisportal:rw
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     links:
       - server
       - datastore
+      - keycloak
     # Uncomment the next three lines to work in a shell environment for debugging.
 #    entrypoint: /bin/bash
 #    stdin_open: true
@@ -164,10 +170,34 @@ services:
       - "${NGINX_PORT:-8088}:80"
       - "${NGINX_TLS_PORT:-8443}:443"
     volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/html:/usr/share/nginx/html:ro
       - ./nginx/conf.d/default.conf:/etc/nginx/conf.d/default.conf:ro
       - ./nginx/snippets:/etc/nginx/snippets:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    hostname: keycloak
+    command: >
+      start-dev --import-realm
+      --https-certificate-file=/opt/keycloak/conf/server.crt
+      --https-certificate-key-file=/opt/keycloak/conf/server.key
+    ports:
+      - "${KEYCLOAK_HOST:-127.0.0.1}:${KEYCLOAK_PORT:-8180}:8443"
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USER:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      KC_HOSTNAME: https://${KEYCLOAK_HOSTNAME:-localhost}:${KEYCLOAK_PORT:-8180}
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_ENABLED: "true"
+      KC_HTTPS_PORT: "8443"
+      KC_HEALTH_ENABLED: "true"
+    volumes:
+      - ./keycloak/realm-arcgis.json:/opt/keycloak/data/import/realm-arcgis.json:ro
+      - ./nginx/ssl:/opt/keycloak/conf:ro
+      - keycloak_data:/opt/keycloak/data
 
   # mcp:
   #   image: arcgis-mcp-server
