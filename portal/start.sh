@@ -32,6 +32,17 @@ if [ -f ${SCRIPT} ]; then
   ${SCRIPT} restart
 fi
 
+JAVA_HOME="/home/arcgis/portal/framework/runtime/jre"
+if [ -f /app/keycloak-ca.crt ] && [ -f "${JAVA_HOME}/bin/keytool" ]; then
+  if ! "${JAVA_HOME}/bin/keytool" -list -alias keycloak-local \
+      -keystore "${JAVA_HOME}/lib/security/cacerts" -storepass changeit >/dev/null 2>&1; then
+    echo "Importing Keycloak TLS cert into Portal JVM truststore"
+    "${JAVA_HOME}/bin/keytool" -importcert -noprompt -alias keycloak-local \
+      -file /app/keycloak-ca.crt \
+      -keystore "${JAVA_HOME}/lib/security/cacerts" -storepass changeit
+  fi
+fi
+
 PORTAL_URL="https://${HOSTNAME}:7443/arcgis/home/"
 echo -n "Waiting for Portal to start.. "
 sleep 10

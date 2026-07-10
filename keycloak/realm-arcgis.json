@@ -28,7 +28,7 @@
         "https://portal.local:7443"
       ],
       "standardFlowEnabled": true,
-      "directAccessGrantsEnabled": true,
+      "directAccessGrantsEnabled": false,
       "publicClient": false,
       "protocol": "openid-connect",
       "fullScopeAllowed": true,
