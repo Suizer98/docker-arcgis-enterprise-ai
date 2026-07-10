@@ -1,0 +1,21 @@
+{
+  "name": "random-line",
+  "label": "Random Line",
+  "type": "widget",
+  "version": "1.19.0",
+  "exbVersion": "1.19.0",
+  "author": "Esri R&D Center Beijing",
+  "description": "Draw a random line on the map with a color of your choice and zoom to it with animation.",
+  "copyright": "",
+  "license": "http://www.apache.org/licenses/LICENSE-2.0",
+  "properties": {
+    "hasSettingPage": true
+  },
+  "translatedLocales": [
+    "en"
+  ],
+  "defaultSize": {
+    "width": 320,
+    "height": 120
+  }
+}
