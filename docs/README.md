@@ -8,7 +8,7 @@ Tech stacks:
 
 ## Changes in fork
 
-Enabling ESRI ArcGIS Enterprise to be run in Docker containers on Window WSL2 or MacOS (primarily OrbStack). This fork focuses on improving the undone job by resolving Datastore issue and setting up your own enterprise geodatabases using the PostgreSQL.
+Enabling ESRI ArcGIS Enterprise to be run in Docker containers on Window WSL2 or MacOS (primarily OrbStack). This fork focuses on improving the undone job by resolving Datastore issue and setting up your own enterprise geodatabases using the PostgreSQL. Optional Keycloak OIDC for Portal is experimental; see below.
 
 ## Building appropriate image as a start
 
@@ -68,6 +68,47 @@ Fix the Web Adaptor URL in Portal (direct HTTPS to Portal, bypassing the Web Ada
 
 Summary: Register using `portal.local` / `server.local` (and `hosts` on Windows for direct Portal admin). Then edit the Web Adaptor entry so URL is `https://localhost/arcgis`, not the auto-detected Docker hostname—so that logging in through `https://localhost/arcgis/home` uses consistent redirect URIs and OAuth stops failing with 404 or invalid redirect on the callback.
 
+## Keycloak OIDC (experimental, partially working)
+
+Optional Keycloak on `https://localhost:8180` (`keycloak/realm-arcgis.json`, client `arcgis-portal` / secret `arcgis-portal-secret`, test user `portaluser` / `portaluser`).
+
+Unsolved: after Keycloak login, Portal often returns `OAUTH_0011` — *Did not receive 'user profile' parameter from the provider.* Use built-in Portal accounts for reliable login.
+
+Start:
+
+```bash
+sh nginx/generate-ssl.sh   # delete nginx/ssl/server.* first if SAN lacks DNS:keycloak
+docker compose up keycloak portal -d --force-recreate
+```
+
+Prerequisites: Web Adaptor URL `https://localhost/arcgis`; `WebContextURL` `{"WebContextURL":"https://localhost/arcgis"}`.
+
+Portal OIDC endpoints (Organization → Settings → Security → Logins). Import discovery from the browser URL, then set server-side endpoints to the Portal container URL:
+
+| Field | Browser (`localhost:8180`) | Portal container (`keycloak:8443`) |
+|-------|----------------------------|-------------------------------------|
+| Discovery | `https://localhost:8180/realms/arcgis/.well-known/openid-configuration` | — |
+| Issuer | `https://localhost:8180/realms/arcgis` | — |
+| Authorize | `https://localhost:8180/realms/arcgis/protocol/openid-connect/auth` | — |
+| Token | — | `https://keycloak:8443/realms/arcgis/protocol/openid-connect/token` |
+| Userinfo | — | `https://keycloak:8443/realms/arcgis/protocol/openid-connect/userinfo` |
+| JWKS | — | `https://keycloak:8443/realms/arcgis/protocol/openid-connect/certs` |
+
+| Setting | Value |
+|---------|--------|
+| Client ID | `arcgis-portal` |
+| Client secret | `arcgis-portal-secret` |
+| Scope | `openid profile email` |
+| User ID claim | `preferred_username` |
+| Email claim | `email` |
+| Full name claim | `name` |
+
+Do not use `host.docker.internal` in the browser.
+
+Keycloak client redirect URIs (if realm already imported): `https://localhost/arcgis/sharing/rest/oauth2/oidc/*` and `.../signin` (wildcard only at end).
+
+Details: `sample.env`, `compose.yaml`, `portal/start.sh` (JVM truststore import).
+
 ## Setup enterprise geodatabases connection
 
 ### Setup connection between pgadmin and postgresql
@@ -115,6 +156,10 @@ docker cp docker-arcgis-enterprise-server-1:/home/arcgis/server/framework/runtim
 4. After successful creation, create new database connection in ArcGIS Pro to generate the sde file.
 
 ## Troubleshooting
+
+### Portal OIDC — `OAUTH_0011`
+
+After Keycloak login: *Did not receive 'user profile' parameter from the provider.* Unsolved; see [Keycloak OIDC (experimental)](#keycloak-oidc-experimental-partially-working) above.
 
 ### DataStore Validation Issues
 
